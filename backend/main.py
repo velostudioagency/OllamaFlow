@@ -1,7 +1,9 @@
 import json
 import asyncio
+import uuid
+import os
 from typing import Dict, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -9,6 +11,7 @@ from node_registry import NODE_TYPES, TOOL_DEFINITIONS
 from agent_runner import WorkflowRunner
 from memory_manager import memory_manager
 from workflow_store import workflow_store
+from scheduler import scheduler_manager
 
 app = FastAPI(title="OllamaFlow", version="1.0.0")
 
@@ -199,6 +202,64 @@ async def health():
         "status": "ok",
         "ollama": ollama_status
     }
+
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        file_id = f"{uuid.uuid4().hex[:12]}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR, file_id)
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        return {"file_path": file_path, "filename": file.filename, "size": len(content)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+class ScheduleCreateRequest(BaseModel):
+    workflow: Dict
+    name: str
+    schedule_type: str = "interval"
+    interval_minutes: int = 60
+    cron_expression: str = ""
+    enabled: bool = True
+
+
+@app.post("/api/schedule")
+async def create_schedule(request: ScheduleCreateRequest):
+    schedule_id = uuid.uuid4().hex[:8]
+    result = scheduler_manager.add_schedule(
+        schedule_id=schedule_id,
+        workflow=request.workflow,
+        name=request.name,
+        schedule_type=request.schedule_type,
+        interval_minutes=request.interval_minutes,
+        cron_expression=request.cron_expression,
+        enabled=request.enabled
+    )
+    return {"message": result, "schedule_id": schedule_id}
+
+
+@app.get("/api/schedules")
+async def list_schedules():
+    return {"schedules": scheduler_manager.list_schedules()}
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str):
+    result = scheduler_manager.remove_schedule(schedule_id)
+    return {"message": result}
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str):
+    result = scheduler_manager.toggle_schedule(schedule_id)
+    return {"message": result}
 
 
 if __name__ == "__main__":

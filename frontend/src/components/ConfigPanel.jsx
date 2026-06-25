@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Trash2, Upload, Clock } from 'lucide-react';
 import axios from 'axios';
 
 export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDelete, onClose }) {
   const [models, setModels] = useState([]);
   const [toolsList, setToolsList] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchModels();
@@ -26,6 +29,25 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
       setToolsList(Object.keys(resp.data.details || {}));
     } catch (err) {
       setToolsList([]);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await axios.post('/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      onUpdateConfig(node.id, { file_path: resp.data.file_path });
+    } catch (err) {
+      setUploadError('Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -179,7 +201,6 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
     input: {
       prompt: { type: 'string', label: 'Goal / Prompt' },
       input_type: { type: 'select', label: 'Input Type', options: ['text', 'file_upload', 'scheduled'] },
-      file_path: { type: 'string', label: 'File Path' },
     },
     llm: {
       model: { type: 'select', label: 'Model' },
@@ -263,6 +284,11 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
     ],
     get_datetime: [
       { name: 'format_str', label: 'Format', type: 'string', default: '%Y-%m-%d %H:%M:%S' },
+    ],
+    run_command: [
+      { name: 'command', label: 'Command', type: 'string', required: true },
+      { name: 'working_directory', label: 'Working Directory', type: 'string' },
+      { name: 'timeout', label: 'Timeout (s)', type: 'number', default: 60 },
     ],
   };
 
@@ -379,6 +405,66 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
         <div className="w-full h-px bg-[#333] my-3" />
 
         {fieldEntries.map(([key, schema]) => renderField(key, schema))}
+
+        {type === 'input' && config.input_type === 'file_upload' && (
+          <div className="mt-2">
+            <div className="w-full h-px bg-[#333] my-3" />
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Upload File</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".txt,.md,.py,.json,.csv,.pdf,.docx,.xlsx"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 bg-[#1a1a2e] border border-[#333] rounded px-3 py-2 text-xs text-white hover:border-blue-500 transition disabled:opacity-50"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {uploading ? 'Uploading...' : 'Choose File'}
+            </button>
+            {config.file_path && (
+              <p className="text-[10px] text-green-400 mt-1 truncate">{config.file_path.split(/[/\\]/).pop()}</p>
+            )}
+            {uploadError && <p className="text-[10px] text-red-400 mt-1">{uploadError}</p>}
+          </div>
+        )}
+
+        {type === 'input' && config.input_type === 'scheduled' && (
+          <div className="mt-2">
+            <div className="w-full h-px bg-[#333] my-3" />
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Schedule Config</p>
+            <div className="mb-3">
+              <label className="block text-xs text-gray-400 mb-1">Run Every (minutes)</label>
+              <input
+                type="number"
+                value={config.interval_minutes || 60}
+                onChange={(e) => onUpdateConfig(node.id, { interval_minutes: parseInt(e.target.value) || 60 })}
+                min="1"
+                className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="mb-3 flex items-center justify-between">
+              <label className="text-xs text-gray-400">Enabled</label>
+              <button
+                onClick={() => onUpdateConfig(node.id, { schedule_enabled: !(config.schedule_enabled !== false) })}
+                className={`w-10 h-5 rounded-full transition-colors relative ${config.schedule_enabled !== false ? 'bg-blue-600' : 'bg-[#333]'}`}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                    config.schedule_enabled !== false ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2">
+              <Clock className="w-3 h-3 inline mr-1" />
+              Workflow runs automatically every {config.interval_minutes || 60} min
+            </p>
+          </div>
+        )}
 
         {type === 'tool' && config.tool_name && (
           <div className="mt-2">
