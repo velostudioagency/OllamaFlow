@@ -9,3 +9,5 @@ dist/
 data/
 backend/data/
 frontend/.vite/
+*.txt
+!backend/requirements.txt
