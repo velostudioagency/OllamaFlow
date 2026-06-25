@@ -93,6 +93,8 @@ async def handle_tool(node: Dict, context: Dict) -> NodeResult:
         tool_params["expression"] = current_input
     elif tool_name in ["run_code"] and "code" not in tool_params:
         tool_params["code"] = current_input
+    elif tool_name in ["run_command"] and "command" not in tool_params:
+        tool_params["command"] = current_input
     if tool_name == "http_request":
         if "url" not in tool_params and current_input:
             tool_params["url"] = current_input

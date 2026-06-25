@@ -11,18 +11,29 @@ from pathlib import Path
 
 def web_search(query: str, num_results: int = 5) -> str:
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=num_results))
-            if not results:
-                return "No results found."
-            output_lines = []
-            for i, r in enumerate(results, 1):
-                output_lines.append(f"{i}. {r.get('title', 'No title')}")
-                output_lines.append(f"   URL: {r.get('href', 'N/A')}")
-                output_lines.append(f"   {r.get('body', 'No description')}")
-                output_lines.append("")
-            return "\n".join(output_lines)
+        from websearch.layer1_search.adapters.ddgs_engine import DdgsAdapter
+        from websearch.layer1_search.router import SearchRouter
+        from websearch.layer1_search.models import SearchRequest
+
+        adapter = DdgsAdapter()
+        router = SearchRouter([adapter])
+        request = SearchRequest(query=query, count=num_results)
+        result = router.search(request)
+
+        if not result.ok:
+            return f"Search error: {result.error}"
+
+        results = result.data.get("results", [])
+        if not results:
+            return "No results found."
+
+        output_lines = []
+        for i, r in enumerate(results, 1):
+            output_lines.append(f"{i}. {r.get('title', 'No title')}")
+            output_lines.append(f"   URL: {r.get('url', 'N/A')}")
+            output_lines.append(f"   {r.get('snippet', 'No description')}")
+            output_lines.append("")
+        return "\n".join(output_lines)
     except Exception as e:
         return f"Search error: {str(e)}"
 
@@ -168,6 +179,39 @@ def calculate(expression: str, **kwargs) -> str:
         return f"Calculation error: {str(e)}"
 
 
+def run_command(command: str, working_directory: str = "", timeout: int = 60, **kwargs) -> str:
+    try:
+        import sys
+        is_windows = sys.platform == "win32"
+        if is_windows:
+            shell_cmd = ["cmd", "/c", command]
+        else:
+            shell_cmd = ["bash", "-c", command]
+        cwd = working_directory if working_directory and Path(working_directory).is_dir() else None
+        result = subprocess.run(
+            shell_cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=cwd
+        )
+        output = ""
+        if result.stdout:
+            output += result.stdout
+        if result.stderr:
+            output += ("\n" if output else "") + result.stderr
+        if not output.strip():
+            output = "Command executed successfully (no output)."
+        exit_code = result.returncode
+        return f"Exit Code: {exit_code}\n\n{output[:8000]}"
+    except subprocess.TimeoutExpired:
+        return f"Error: Command timed out after {timeout}s"
+    except FileNotFoundError:
+        return f"Error: Shell not found. Command: {command}"
+    except Exception as e:
+        return f"Error running command: {str(e)}"
+
+
 def get_datetime(format_str: str = "%Y-%m-%d %H:%M:%S", **kwargs) -> str:
     return datetime.datetime.now().strftime(format_str)
 
@@ -175,7 +219,7 @@ def get_datetime(format_str: str = "%Y-%m-%d %H:%M:%S", **kwargs) -> str:
 TOOL_DEFINITIONS = {
     "web_search": {
         "name": "web_search",
-        "description": "Search the web using DuckDuckGo",
+        "description": "Search the web using multiple engines (DuckDuckGo, Brave, Bing, etc.)",
         "handler": web_search,
         "params": [
             {"name": "query", "type": "string", "required": True, "label": "Search Query"},
@@ -249,6 +293,16 @@ TOOL_DEFINITIONS = {
         "params": [
             {"name": "format_str", "type": "string", "required": False, "label": "Format",
              "default": "%Y-%m-%d %H:%M:%S"}
+        ]
+    },
+    "run_command": {
+        "name": "run_command",
+        "description": "Execute a terminal/shell command on the user's PC",
+        "handler": run_command,
+        "params": [
+            {"name": "command", "type": "string", "required": True, "label": "Command"},
+            {"name": "working_directory", "type": "string", "required": False, "label": "Working Directory"},
+            {"name": "timeout", "type": "number", "required": False, "label": "Timeout (s)", "default": 60}
         ]
     }
 }
