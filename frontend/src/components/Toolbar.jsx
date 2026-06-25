@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Square, Save, FolderOpen, Plus, Zap, ChevronDown, Check, X } from 'lucide-react';
+import { Play, Square, Save, FolderOpen, Plus, Zap, ChevronDown, Check, X, Settings as SettingsIcon } from 'lucide-react';
 import axios from 'axios';
 
 export default function Toolbar({
@@ -13,6 +13,7 @@ export default function Toolbar({
   onLoadExample,
   isRunning,
   ollamaStatus,
+  onOpenSettings,
 }) {
   const [showExamples, setShowExamples] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
@@ -153,6 +154,14 @@ export default function Toolbar({
         </div>
 
         <div className="w-px h-6 bg-[#333] mx-1" />
+
+        <button
+          onClick={onOpenSettings}
+          className="p-1.5 text-gray-400 hover:text-white hover:bg-[#333] rounded transition"
+          title="Settings"
+        >
+          <SettingsIcon className="w-4 h-4" />
+        </button>
 
         {isRunning ? (
           <button

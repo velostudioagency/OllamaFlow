@@ -14,6 +14,7 @@ import Toolbar from './components/Toolbar';
 import NodePanel from './components/NodePanel';
 import ConfigPanel from './components/ConfigPanel';
 import OutputPanel from './components/OutputPanel';
+import Settings from './components/Settings';
 import LLMNode from './components/nodes/LLMNode';
 import ToolNode from './components/nodes/ToolNode';
 import MemoryNode from './components/nodes/MemoryNode';
@@ -63,6 +64,7 @@ function FlowCanvas() {
   const [nodeStates, setNodeStates] = useState({});
   const [runDuration, setRunDuration] = useState(null);
   const [streamText, setStreamText] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const reactFlowInstance = useRef(null);
 
   const onConnect = useCallback(
@@ -407,6 +409,7 @@ function FlowCanvas() {
         onLoadExample={loadExample}
         isRunning={isRunning}
         ollamaStatus={ollamaStatus}
+        onOpenSettings={() => setShowSettings(true)}
       />
       <div className="flex flex-1 overflow-hidden">
         <NodePanel />
@@ -460,6 +463,9 @@ function FlowCanvas() {
           streamText={streamText}
           onClose={() => setShowOutput(false)}
         />
+      )}
+      {showSettings && (
+        <Settings onClose={() => setShowSettings(false)} />
       )}
     </div>
   );

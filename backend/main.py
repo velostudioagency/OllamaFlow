@@ -12,6 +12,7 @@ from agent_runner import WorkflowRunner
 from memory_manager import memory_manager
 from workflow_store import workflow_store
 from scheduler import scheduler_manager
+from settings_manager import settings_manager
 
 app = FastAPI(title="OllamaFlow", version="1.0.0")
 
@@ -260,6 +261,32 @@ async def delete_schedule(schedule_id: str):
 async def toggle_schedule(schedule_id: str):
     result = scheduler_manager.toggle_schedule(schedule_id)
     return {"message": result}
+
+
+class SettingsUpdateRequest(BaseModel):
+    settings: Dict
+
+
+@app.get("/api/settings")
+async def get_settings():
+    return {"settings": settings_manager.get_all()}
+
+
+@app.post("/api/settings")
+async def update_settings(request: SettingsUpdateRequest):
+    result = settings_manager.update(request.settings)
+    return {"message": result}
+
+
+@app.get("/api/providers")
+async def get_providers():
+    groq_key = settings_manager.get("groq_api_key", "")
+    return {
+        "providers": {
+            "ollama": {"name": "Ollama (Local)", "requires_key": False},
+            "groq": {"name": "Groq (Cloud)", "requires_key": True, "has_key": bool(groq_key)}
+        }
+    }
 
 
 if __name__ == "__main__":

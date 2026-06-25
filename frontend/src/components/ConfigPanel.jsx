@@ -203,7 +203,10 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
       input_type: { type: 'select', label: 'Input Type', options: ['text', 'file_upload', 'scheduled'] },
     },
     llm: {
+      provider: { type: 'select', label: 'Provider', options: ['ollama', 'groq'] },
       model: { type: 'select', label: 'Model' },
+      groq_model: { type: 'select', label: 'Groq Model',
+        options: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it', 'mixtral-8x7b-32768', 'meta-llama/llama-4-scout-17b-16e-instruct'] },
       system_prompt: { type: 'textarea', label: 'System Prompt' },
       temperature: { type: 'slider', label: 'Temperature', min: 0, max: 1, step: 0.1 },
       max_tokens: { type: 'slider', label: 'Max Tokens', min: 100, max: 4000, step: 100 },
@@ -289,6 +292,15 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
       { name: 'command', label: 'Command', type: 'string', required: true },
       { name: 'working_directory', label: 'Working Directory', type: 'string' },
       { name: 'timeout', label: 'Timeout (s)', type: 'number', default: 60 },
+    ],
+    playwright_browser: [
+      { name: 'action', label: 'Action', type: 'select', options: ['goto', 'click', 'type', 'extract', 'screenshot', 'evaluate'], required: true },
+      { name: 'url', label: 'URL', type: 'string' },
+      { name: 'browser', label: 'Browser', type: 'select', options: ['chromium', 'firefox', 'webkit'], default: 'chromium' },
+      { name: 'selector', label: 'CSS Selector', type: 'string' },
+      { name: 'text', label: 'Text / JS Code', type: 'textarea' },
+      { name: 'screenshot', label: 'Screenshot Path', type: 'string' },
+      { name: 'wait_seconds', label: 'Wait (s)', type: 'number', default: 3 },
     ],
   };
 

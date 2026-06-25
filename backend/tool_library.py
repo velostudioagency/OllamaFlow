@@ -216,6 +216,78 @@ def get_datetime(format_str: str = "%Y-%m-%d %H:%M:%S", **kwargs) -> str:
     return datetime.datetime.now().strftime(format_str)
 
 
+def playwright_browser(action: str = "goto", url: str = "", browser: str = "chromium",
+                       selector: str = "", text: str = "", screenshot: str = "",
+                       wait_seconds: int = 3, **kwargs) -> str:
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser_type = getattr(p, browser, p.chromium)
+            launch_opts = {"headless": True}
+            if browser == "chromium":
+                launch_opts["channel"] = "chrome"
+            elif browser == "brave":
+                launch_opts["channel"] = "brave"
+
+            pw_browser = browser_type.launch(**launch_opts)
+            page = pw_browser.new_page()
+
+            if action == "goto" and url:
+                page.goto(url, timeout=30000)
+                page.wait_for_load_state("networkidle", timeout=15000)
+                title = page.title()
+                content = page.content()[:15000]
+                pw_browser.close()
+                return f"Title: {title}\n\n{content}"
+
+            elif action == "click" and selector:
+                page.goto(url, timeout=30000) if url else None
+                page.wait_for_load_state("networkidle", timeout=15000)
+                page.click(selector)
+                page.wait_for_timeout(wait_seconds * 1000)
+                content = page.content()[:15000]
+                pw_browser.close()
+                return f"Clicked: {selector}\n\n{content}"
+
+            elif action == "type" and selector and text:
+                page.goto(url, timeout=30000) if url else None
+                page.wait_for_load_state("networkidle", timeout=15000)
+                page.fill(selector, text)
+                content = page.content()[:15000]
+                pw_browser.close()
+                return f"Typed into: {selector}\n\n{content}"
+
+            elif action == "extract" and selector:
+                page.goto(url, timeout=30000) if url else None
+                page.wait_for_load_state("networkidle", timeout=15000)
+                elements = page.query_selector_all(selector)
+                texts = [el.inner_text() for el in elements[:20]]
+                pw_browser.close()
+                return f"Extracted {len(texts)} elements:\n" + "\n---\n".join(texts)
+
+            elif action == "screenshot":
+                page.goto(url, timeout=30000) if url else None
+                page.wait_for_load_state("networkidle", timeout=15000)
+                screenshot_path = screenshot or "screenshot.png"
+                page.screenshot(path=screenshot_path, full_page=True)
+                pw_browser.close()
+                return f"Screenshot saved to: {screenshot_path}"
+
+            elif action == "evaluate" and text:
+                page.goto(url, timeout=30000) if url else None
+                page.wait_for_load_state("networkidle", timeout=15000)
+                result = page.evaluate(text)
+                pw_browser.close()
+                return f"Result: {str(result)[:5000]}"
+
+            else:
+                pw_browser.close()
+                return f"Error: Invalid action '{action}' or missing parameters. Actions: goto, click, type, extract, screenshot, evaluate"
+
+    except Exception as e:
+        return f"Browser error: {str(e)}"
+
+
 TOOL_DEFINITIONS = {
     "web_search": {
         "name": "web_search",
@@ -303,6 +375,22 @@ TOOL_DEFINITIONS = {
             {"name": "command", "type": "string", "required": True, "label": "Command"},
             {"name": "working_directory", "type": "string", "required": False, "label": "Working Directory"},
             {"name": "timeout", "type": "number", "required": False, "label": "Timeout (s)", "default": 60}
+        ]
+    },
+    "playwright_browser": {
+        "name": "playwright_browser",
+        "description": "Browse the web using Playwright (Chrome, Brave, Edge)",
+        "handler": playwright_browser,
+        "params": [
+            {"name": "action", "type": "select", "required": True, "label": "Action",
+             "options": ["goto", "click", "type", "extract", "screenshot", "evaluate"]},
+            {"name": "url", "type": "string", "required": False, "label": "URL"},
+            {"name": "browser", "type": "select", "required": False, "label": "Browser", "default": "chromium",
+             "options": ["chromium", "firefox", "webkit"]},
+            {"name": "selector", "type": "string", "required": False, "label": "CSS Selector"},
+            {"name": "text", "type": "string", "required": False, "label": "Text / JS Code"},
+            {"name": "screenshot", "type": "string", "required": False, "label": "Screenshot Path"},
+            {"name": "wait_seconds", "type": "number", "required": False, "label": "Wait (s)", "default": 3}
         ]
     }
 }
