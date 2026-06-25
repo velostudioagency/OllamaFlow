@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Copy, Download, ChevronUp, ChevronDown } from 'lucide-react';
 
-export default function OutputPanel({ logs, finalOutput, errors, onClose }) {
+export default function OutputPanel({ logs, finalOutput, errors, runDuration, onClose }) {
   const [activeTab, setActiveTab] = useState('logs');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const logsRef = useRef(null);
@@ -87,6 +87,12 @@ export default function OutputPanel({ logs, finalOutput, errors, onClose }) {
             </button>
           ))}
         </div>
+        {runDuration && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-[#1a1a1a] rounded text-xs">
+            <span className="text-gray-500">Completed in</span>
+            <span className="text-green-400 font-mono font-medium">{runDuration}s</span>
+          </div>
+        )}
         <div className="flex items-center gap-1">
           {activeTab === 'output' && finalOutput && (
             <>

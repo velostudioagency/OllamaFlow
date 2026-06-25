@@ -61,6 +61,7 @@ function FlowCanvas() {
   const [ollamaStatus, setOllamaStatus] = useState('checking');
   const [showOutput, setShowOutput] = useState(false);
   const [nodeStates, setNodeStates] = useState({});
+  const [runDuration, setRunDuration] = useState(null);
   const reactFlowInstance = useRef(null);
 
   const onConnect = useCallback(
@@ -166,6 +167,8 @@ function FlowCanvas() {
     setErrors([]);
     setShowOutput(true);
     setNodeStates({});
+    setRunDuration(null);
+    const startTime = Date.now();
 
     const workflowData = {
       name: workflowName,
@@ -204,17 +207,20 @@ function FlowCanvas() {
         } else if (msg.type === 'complete') {
           setFinalOutput(msg.data.output || '');
           setErrors(msg.data.errors || []);
+          setRunDuration(((Date.now() - startTime) / 1000).toFixed(1));
           setIsRunning(false);
           setNodeStates({});
           ws.close();
         } else if (msg.type === 'error') {
           setErrors([msg.message]);
+          setRunDuration(((Date.now() - startTime) / 1000).toFixed(1));
           setIsRunning(false);
           ws.close();
         }
       };
       ws.onerror = () => {
         setErrors(['WebSocket connection failed. Is the backend running?']);
+        setRunDuration(((Date.now() - startTime) / 1000).toFixed(1));
         setIsRunning(false);
       };
       ws.onclose = () => {
@@ -222,6 +228,7 @@ function FlowCanvas() {
       };
     } catch (err) {
       setErrors([`Connection error: ${err.message}`]);
+      setRunDuration(((Date.now() - startTime) / 1000).toFixed(1));
       setIsRunning(false);
     }
   }, [nodes, edges, workflowName, isRunning]);
@@ -444,6 +451,7 @@ function FlowCanvas() {
           logs={logs}
           finalOutput={finalOutput}
           errors={errors}
+          runDuration={runDuration}
           onClose={() => setShowOutput(false)}
         />
       )}
