@@ -227,6 +227,121 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
     output: '#6B7280',
   };
 
+  const TOOL_PARAMS = {
+    web_search: [
+      { name: 'query', label: 'Search Query', type: 'string', required: true },
+      { name: 'num_results', label: 'Num Results', type: 'number', default: 5 },
+    ],
+    read_file: [
+      { name: 'file_path', label: 'File Path', type: 'string', required: true },
+    ],
+    write_file: [
+      { name: 'file_path', label: 'File Path', type: 'string', required: true },
+      { name: 'content', label: 'Content', type: 'textarea', required: true },
+    ],
+    run_code: [
+      { name: 'code', label: 'Python Code', type: 'textarea', required: true },
+    ],
+    send_email: [
+      { name: 'to', label: 'To Email', type: 'string', required: true },
+      { name: 'subject', label: 'Subject', type: 'string', required: true },
+      { name: 'body', label: 'Body', type: 'textarea', required: true },
+      { name: 'smtp_server', label: 'SMTP Server', type: 'string', default: 'smtp.gmail.com' },
+      { name: 'smtp_port', label: 'SMTP Port', type: 'number', default: 587 },
+      { name: 'username', label: 'Username (Email)', type: 'string' },
+      { name: 'password', label: 'Password (App Password)', type: 'string' },
+    ],
+    http_request: [
+      { name: 'url', label: 'URL', type: 'string', required: true },
+      { name: 'method', label: 'Method', type: 'select', options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], default: 'GET' },
+      { name: 'headers', label: 'Headers (JSON)', type: 'textarea' },
+      { name: 'body', label: 'Body', type: 'textarea' },
+      { name: 'timeout', label: 'Timeout (s)', type: 'number', default: 30 },
+    ],
+    calculate: [
+      { name: 'expression', label: 'Expression', type: 'string', required: true },
+    ],
+    get_datetime: [
+      { name: 'format_str', label: 'Format', type: 'string', default: '%Y-%m-%d %H:%M:%S' },
+    ],
+  };
+
+  const renderToolParams = (toolName, params, nodeId) => {
+    const toolParamDefs = TOOL_PARAMS[toolName] || [];
+    return toolParamDefs.map((p) => {
+      const value = params[p.name] !== undefined ? params[p.name] : (p.default || '');
+      const updateParam = (val) => {
+        const newParams = { ...params, [p.name]: val };
+        onUpdateConfig(nodeId, { params: newParams });
+      };
+
+      if (p.type === 'string') {
+        return (
+          <div key={p.name} className="mb-2">
+            <label className="block text-xs text-gray-400 mb-1">
+              {p.label} {p.required && <span className="text-red-400">*</span>}
+            </label>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => updateParam(e.target.value)}
+              className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        );
+      }
+
+      if (p.type === 'textarea') {
+        return (
+          <div key={p.name} className="mb-2">
+            <label className="block text-xs text-gray-400 mb-1">
+              {p.label} {p.required && <span className="text-red-400">*</span>}
+            </label>
+            <textarea
+              value={value}
+              onChange={(e) => updateParam(e.target.value)}
+              rows={3}
+              className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
+            />
+          </div>
+        );
+      }
+
+      if (p.type === 'number') {
+        return (
+          <div key={p.name} className="mb-2">
+            <label className="block text-xs text-gray-400 mb-1">{p.label}</label>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => updateParam(parseInt(e.target.value) || 0)}
+              className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        );
+      }
+
+      if (p.type === 'select') {
+        return (
+          <div key={p.name} className="mb-2">
+            <label className="block text-xs text-gray-400 mb-1">{p.label}</label>
+            <select
+              value={value}
+              onChange={(e) => updateParam(e.target.value)}
+              className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+            >
+              {(p.options || []).map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+        );
+      }
+
+      return null;
+    });
+  };
+
   return (
     <div className="w-72 bg-[#141414] border-l border-[#333] flex flex-col shrink-0 overflow-hidden">
       <div className="px-4 py-3 border-b border-[#333] flex items-center justify-between">
@@ -265,7 +380,15 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
 
         {fieldEntries.map(([key, schema]) => renderField(key, schema))}
 
-        {fieldEntries.length === 0 && (
+        {type === 'tool' && config.tool_name && (
+          <div className="mt-2">
+            <div className="w-full h-px bg-[#333] my-3" />
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Tool Parameters</p>
+            {renderToolParams(config.tool_name, config.params || {}, node.id)}
+          </div>
+        )}
+
+        {fieldEntries.length === 0 && type !== 'tool' && (
           <p className="text-xs text-gray-600 text-center mt-8">No configurable options</p>
         )}
       </div>
