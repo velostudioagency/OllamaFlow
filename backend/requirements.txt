@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+websockets
+langchain
+langchain-ollama
+langchain-community
+chromadb
+duckduckgo-search
+pypdf
+python-docx
+openpyxl
+requests
+pandas
+reportlab
+aiofiles

@@ -1,0 +1,1 @@
+The formula mass of a molecule is the sum of the atomic masses of its constituent atoms, expressed in units of grams per mole (g/mol). It can be calculated by adding up the atomic masses of each atom in the molecule, taking into account the number of times each element appears.
