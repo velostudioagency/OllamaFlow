@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import asyncio
 from typing import Any, Dict, List, Optional, Callable, Awaitable
@@ -79,8 +80,15 @@ async def handle_tool(node: Dict, context: Dict) -> NodeResult:
         tool_params["query"] = current_input
     elif tool_name in ["read_file"] and "file_path" not in tool_params:
         tool_params["file_path"] = current_input
-    elif tool_name in ["write_file"] and "content" not in tool_params:
-        tool_params["content"] = current_input
+    elif tool_name in ["write_file"]:
+        if "content" not in tool_params:
+            tool_params["content"] = current_input
+        if "file_path" not in tool_params:
+            file_match = re.search(r"(?:File Name|file_name|filename|filepath|file_path)\s*[:=]\s*[`\"'*]*(.+?)[`\"'*]*\s*(?:---|\n|$)", current_input, re.IGNORECASE)
+            if file_match:
+                tool_params["file_path"] = file_match.group(1).strip().strip("*")
+            else:
+                tool_params["file_path"] = "output.txt"
     elif tool_name in ["calculate"] and "expression" not in tool_params:
         tool_params["expression"] = current_input
     elif tool_name in ["run_code"] and "code" not in tool_params:
