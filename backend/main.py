@@ -112,8 +112,17 @@ async def websocket_run(websocket: WebSocket):
             except Exception:
                 pass
 
+        async def send_stream(stream_data):
+            try:
+                await websocket.send_json({
+                    "type": "stream",
+                    "data": stream_data
+                })
+            except Exception:
+                pass
+
         runner = WorkflowRunner()
-        result = await runner.run(workflow, log_callback=send_log)
+        result = await runner.run(workflow, log_callback=send_log, stream_callback=send_stream)
         await websocket.send_json({
             "type": "complete",
             "data": result

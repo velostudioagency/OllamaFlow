@@ -32,6 +32,9 @@ async def handle_llm(node: Dict, context: Dict) -> NodeResult:
     temperature = config.get("temperature", 0.7)
     max_tokens = config.get("max_tokens", 2000)
     user_input = context.get("current_input", "")
+    stream_callback = context.get("stream_callback")
+    node_id = context.get("stream_node_id", "")
+    node_type = context.get("stream_node_type", "")
     try:
         from langchain_ollama import ChatOllama
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -44,8 +47,16 @@ async def handle_llm(node: Dict, context: Dict) -> NodeResult:
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_input)
         ]
-        response = await asyncio.to_thread(llm.invoke, messages)
-        output = response.content
+        if stream_callback:
+            collected = []
+            for chunk in llm.stream(messages):
+                if chunk.content:
+                    collected.append(chunk.content)
+                    await stream_callback(node_id, node_type, chunk.content)
+            output = "".join(collected)
+        else:
+            response = await asyncio.to_thread(llm.invoke, messages)
+            output = response.content
         context["current_input"] = output
         return NodeResult(output=output)
     except Exception as e:
@@ -267,6 +278,9 @@ async def handle_agent(node: Dict, context: Dict) -> NodeResult:
     agent_context += "\n  ACTION: get_datetime()"
     agent_context += "\nWhen done, respond with: ANSWER: <your final answer>"
     accumulated_output = []
+    stream_callback = context.get("stream_callback")
+    node_id = context.get("stream_node_id", "")
+    node_type = context.get("stream_node_type", "")
     try:
         from langchain_ollama import ChatOllama
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -276,8 +290,16 @@ async def handle_agent(node: Dict, context: Dict) -> NodeResult:
             HumanMessage(content=user_input)
         ]
         for step in range(max_steps):
-            response = await asyncio.to_thread(llm.invoke, messages)
-            content = response.content
+            if stream_callback:
+                collected = []
+                for chunk in llm.stream(messages):
+                    if chunk.content:
+                        collected.append(chunk.content)
+                        await stream_callback(node_id, node_type, chunk.content)
+                content = "".join(collected)
+            else:
+                response = await asyncio.to_thread(llm.invoke, messages)
+                content = response.content
             if "ACTION:" in content:
                 action_line = content.split("ACTION:")[-1].split("\n")[0].strip()
                 tool_name = action_line.split("(")[0].strip()

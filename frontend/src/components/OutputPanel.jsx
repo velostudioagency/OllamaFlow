@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Copy, Download, ChevronUp, ChevronDown } from 'lucide-react';
 
-export default function OutputPanel({ logs, finalOutput, errors, runDuration, onClose }) {
+export default function OutputPanel({ logs, finalOutput, errors, runDuration, streamText, onClose }) {
   const [activeTab, setActiveTab] = useState('logs');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const logsRef = useRef(null);
@@ -66,7 +66,7 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, on
   return (
     <div
       className={`bg-[#141414] border-t border-[#333] flex flex-col shrink-0 transition-all ${
-        isCollapsed ? 'h-10' : 'h-52'
+        isCollapsed ? 'h-10' : 'h-64'
       }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#333] shrink-0">
@@ -131,7 +131,7 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, on
         <div ref={logsRef} className="flex-1 overflow-y-auto px-4 py-2 font-mono text-xs">
           {activeTab === 'logs' && (
             <div className="space-y-1">
-              {logs.length === 0 && (
+              {logs.length === 0 && !streamText && (
                 <p className="text-gray-600">No logs yet. Run the workflow to see output.</p>
               )}
               {logs.map((log, i) => (
@@ -148,6 +148,12 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, on
                   </span>
                 </div>
               ))}
+              {streamText && (
+                <div className="mt-2 p-2 bg-[#1a1a1a] rounded border border-[#333]">
+                  <span className="text-yellow-400 text-[10px] uppercase tracking-wide">Streaming:</span>
+                  <pre className="text-gray-300 whitespace-pre-wrap mt-1 text-[11px] leading-relaxed">{streamText}<span className="animate-pulse text-yellow-400">|</span></pre>
+                </div>
+              )}
             </div>
           )}
 

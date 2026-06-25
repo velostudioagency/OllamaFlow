@@ -62,6 +62,7 @@ function FlowCanvas() {
   const [showOutput, setShowOutput] = useState(false);
   const [nodeStates, setNodeStates] = useState({});
   const [runDuration, setRunDuration] = useState(null);
+  const [streamText, setStreamText] = useState('');
   const reactFlowInstance = useRef(null);
 
   const onConnect = useCallback(
@@ -168,6 +169,7 @@ function FlowCanvas() {
     setShowOutput(true);
     setNodeStates({});
     setRunDuration(null);
+    setStreamText('');
     const startTime = Date.now();
 
     const workflowData = {
@@ -198,12 +200,15 @@ function FlowCanvas() {
           if (log.node_id) {
             if (log.status === 'running') {
               setNodeStates((prev) => ({ ...prev, [log.node_id]: 'running' }));
+              setStreamText('');
             } else if (log.status === 'success') {
               setNodeStates((prev) => ({ ...prev, [log.node_id]: 'success' }));
             } else if (log.status === 'error') {
               setNodeStates((prev) => ({ ...prev, [log.node_id]: 'error' }));
             }
           }
+        } else if (msg.type === 'stream') {
+          setStreamText((prev) => prev + (msg.data.token || ''));
         } else if (msg.type === 'complete') {
           setFinalOutput(msg.data.output || '');
           setErrors(msg.data.errors || []);
@@ -452,6 +457,7 @@ function FlowCanvas() {
           finalOutput={finalOutput}
           errors={errors}
           runDuration={runDuration}
+          streamText={streamText}
           onClose={() => setShowOutput(false)}
         />
       )}

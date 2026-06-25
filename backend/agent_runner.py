@@ -12,12 +12,21 @@ class WorkflowRunner:
         self.is_running = False
         self.should_stop = False
         self.log_callback: Optional[Callable] = None
+        self.stream_callback: Optional[Callable] = None
 
     def reset(self):
         self.context = {}
         self.logs = []
         self.is_running = False
         self.should_stop = False
+
+    async def stream(self, node_id: str, node_type: str, token: str):
+        if self.stream_callback:
+            await self.stream_callback({
+                "node_id": node_id,
+                "node_type": node_type,
+                "token": token
+            })
 
     async def log(self, message: str, node_id: str = "", node_type: str = "", status: str = "info"):
         timestamp = time.strftime("%H:%M:%S")
@@ -72,10 +81,15 @@ class WorkflowRunner:
                     next_ids.append(edge["target"])
         return next_ids
 
-    async def run(self, workflow: Dict, log_callback: Optional[Callable] = None) -> Dict:
+    async def run(self, workflow: Dict, log_callback: Optional[Callable] = None,
+                  stream_callback: Optional[Callable] = None) -> Dict:
         self.reset()
         self.log_callback = log_callback
+        self.stream_callback = stream_callback
         self.is_running = True
+        self.context["stream_callback"] = self.stream
+        self.context["stream_node_id"] = ""
+        self.context["stream_node_type"] = ""
         graph = self._build_graph(workflow)
         if not graph["start_nodes"]:
             await self.log("Error: No starting node found. Add an Input node.", status="error")
@@ -109,6 +123,8 @@ class WorkflowRunner:
                 status="running"
             )
             try:
+                self.context["stream_node_id"] = node_id
+                self.context["stream_node_type"] = node_type
                 result: NodeResult = await handler(node, self.context)
                 if result.status == "success":
                     await self.log(
