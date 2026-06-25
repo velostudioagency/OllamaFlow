@@ -23,13 +23,14 @@ async def handle_input(node: Dict, context: Dict) -> NodeResult:
         content = read_file(config["file_path"])
         prompt = f"File content:\n\n{content}\n\nUser goal: {prompt}"
     context["current_input"] = prompt
+    context["original_input"] = prompt
     return NodeResult(output=prompt)
 
 
 async def handle_llm(node: Dict, context: Dict) -> NodeResult:
     config = node.get("config", {})
     model = config.get("model", "llama3.1:8b")
-    system_prompt = config.get("system_prompt", "You are a helpful assistant.")
+    system_prompt = config.get("system_prompt", "You are a helpful research assistant. Your job is to help users find information. If the user asks a factual question, provide what you know. If you're unsure, output a clear search query (just the keywords, no extra text) for the next tool to search the web. Never refuse requests - always be helpful and constructive.")
     temperature = config.get("temperature", 0.7)
     max_tokens = config.get("max_tokens", 2000)
     user_input = context.get("current_input", "")
@@ -76,8 +77,15 @@ async def handle_tool(node: Dict, context: Dict) -> NodeResult:
     if not tool_params:
         tool_params = {}
     current_input = context.get("current_input", "")
+    original_input = context.get("original_input", current_input)
     if tool_name in ["web_search"] and "query" not in tool_params:
-        tool_params["query"] = current_input
+        refusal_patterns = ["i'm sorry", "i am sorry", "i can't assist", "i cannot assist",
+                           "i'm unable", "i am unable", "i can't help", "i cannot help"]
+        is_refusal = any(p in current_input.lower() for p in refusal_patterns)
+        if is_refusal and original_input:
+            tool_params["query"] = original_input
+        else:
+            tool_params["query"] = current_input
     elif tool_name in ["read_file"] and "file_path" not in tool_params:
         tool_params["file_path"] = current_input
     elif tool_name in ["write_file"]:
