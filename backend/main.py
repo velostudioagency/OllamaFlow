@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 from node_registry import NODE_TYPES, TOOL_DEFINITIONS
-from agent_runner import workflow_runner
+from agent_runner import WorkflowRunner
 from memory_manager import memory_manager
 from workflow_store import workflow_store
 
@@ -50,8 +50,10 @@ class MemoryClearRequest(BaseModel):
 @app.get("/api/models")
 async def get_models():
     try:
-        resp = requests.get(f"{OLLAMA_BASE}/api/tags", timeout=5)
-        data = resp.json()
+        def _fetch():
+            resp = requests.get(f"{OLLAMA_BASE}/api/tags", timeout=5)
+            return resp.json()
+        data = await asyncio.to_thread(_fetch)
         models = [m["name"] for m in data.get("models", [])]
         return {"models": models, "status": "connected"}
     except Exception:
@@ -81,7 +83,8 @@ async def run_workflow(request: WorkflowRunRequest):
     workflow = request.workflow
     if not workflow.get("nodes"):
         raise HTTPException(status_code=400, detail="Workflow has no nodes")
-    result = await workflow_runner.run(workflow)
+    runner = WorkflowRunner()
+    result = await runner.run(workflow)
     return result
 
 
@@ -92,6 +95,7 @@ active_connections: List[WebSocket] = []
 async def websocket_run(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
+    runner = None
     try:
         data = await websocket.receive_text()
         workflow = json.loads(data)
@@ -108,14 +112,18 @@ async def websocket_run(websocket: WebSocket):
             except Exception:
                 pass
 
-        result = await workflow_runner.run(workflow, log_callback=send_log)
+        runner = WorkflowRunner()
+        result = await runner.run(workflow, log_callback=send_log)
         await websocket.send_json({
             "type": "complete",
             "data": result
         })
     except WebSocketDisconnect:
-        pass
+        if runner:
+            runner.stop()
     except Exception as e:
+        if runner:
+            runner.stop()
         try:
             await websocket.send_json({
                 "type": "error",
@@ -175,7 +183,7 @@ async def clear_memory(namespace: str = "default"):
 async def health():
     ollama_status = "connected"
     try:
-        requests.get(f"{OLLAMA_BASE}/api/tags", timeout=3)
+        await asyncio.to_thread(lambda: requests.get(f"{OLLAMA_BASE}/api/tags", timeout=3))
     except Exception:
         ollama_status = "disconnected"
     return {

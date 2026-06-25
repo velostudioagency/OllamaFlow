@@ -81,7 +81,7 @@ async def handle_tool(node: Dict, context: Dict) -> NodeResult:
         for key in ["to", "subject", "body"]:
             if key not in tool_params or not tool_params[key]:
                 tool_params[key] = current_input if key == "body" else ""
-    result = execute_tool(tool_name, tool_params)
+    result = await asyncio.to_thread(execute_tool, tool_name, tool_params)
     context["current_input"] = result
     return NodeResult(output=result)
 
@@ -94,17 +94,17 @@ async def handle_memory(node: Dict, context: Dict) -> NodeResult:
     current_input = context.get("current_input", "")
     try:
         if action == "remember":
-            result = memory_manager.save(namespace, current_input, memory_type)
+            result = await asyncio.to_thread(memory_manager.save, namespace, current_input, memory_type)
         elif action == "recall":
-            result = memory_manager.recall(namespace, memory_type)
+            result = await asyncio.to_thread(memory_manager.recall, namespace, memory_type)
         elif action == "search":
             query = config.get("search_query", current_input)
             if memory_type == "long_term":
-                result = memory_manager.search_long_term(namespace, query)
+                result = await asyncio.to_thread(memory_manager.search_long_term, namespace, query)
             else:
-                result = memory_manager.recall_short_term(namespace)
+                result = await asyncio.to_thread(memory_manager.recall_short_term, namespace)
         elif action == "clear":
-            result = memory_manager.clear(namespace)
+            result = await asyncio.to_thread(memory_manager.clear, namespace)
         else:
             result = f"Unknown memory action: {action}"
         context["current_input"] = result
