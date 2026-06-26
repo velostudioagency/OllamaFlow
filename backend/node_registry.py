@@ -37,18 +37,60 @@ async def handle_llm(node: Dict, context: Dict) -> NodeResult:
     stream_callback = context.get("stream_callback")
     node_id = context.get("stream_node_id", "")
     node_type = context.get("stream_node_type", "")
+    provider = config.get("provider", "ollama")
+
+    graph = context.get("graph")
+    connected_tools = []
+    if graph:
+        for edge in graph.get("edges", []):
+            if edge.get("source") == node_id:
+                target_node = graph.get("nodes", {}).get(edge.get("target"), {})
+                if target_node.get("type") == "tool":
+                    tool_name = target_node.get("config", {}).get("tool_name", "")
+                    if tool_name and tool_name in TOOL_DEFINITIONS:
+                        connected_tools.append(tool_name)
+
+    tool_context = ""
+    if connected_tools:
+        tool_context = "\n\nYou have access to the following tools downstream. Output an ACTION line to use a tool:\n"
+        for tool_name in connected_tools:
+            tool_def = TOOL_DEFINITIONS[tool_name]
+            param_parts = []
+            for p in tool_def["params"]:
+                req = "required" if p["required"] else "optional"
+                param_parts.append(f"{p['name']} ({req})")
+            tool_context += f"- {tool_name}: {tool_def['description']}\n"
+            tool_context += f"  Parameters: {', '.join(param_parts)}\n"
+        tool_context += "\nFormat: ACTION: tool_name(param1='value1', param2='value2')"
+        tool_context += "\nWhen you have enough information to answer, just respond normally (without ACTION:)."
     try:
-        from langchain_ollama import ChatOllama
         from langchain_core.messages import HumanMessage, SystemMessage
-        llm = ChatOllama(
-            model=model,
-            temperature=temperature,
-            num_predict=max_tokens
-        )
         messages = [
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=system_prompt + tool_context),
             HumanMessage(content=user_input)
         ]
+
+        if provider == "groq":
+            from settings_manager import settings_manager
+            groq_key = settings_manager.get("groq_api_key", "")
+            groq_model = config.get("groq_model", settings_manager.get("groq_model", "llama-3.3-70b-versatile"))
+            if not groq_key:
+                return NodeResult(output="", status="error", error="Groq API key not set. Go to Settings to configure.")
+            from langchain_groq import ChatGroq
+            llm = ChatGroq(
+                groq_api_key=groq_key,
+                model_name=groq_model,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+        else:
+            from langchain_ollama import ChatOllama
+            llm = ChatOllama(
+                model=model,
+                temperature=temperature,
+                num_predict=max_tokens
+            )
+
         if stream_callback:
             collected = []
             for chunk in llm.stream(messages):
@@ -59,6 +101,27 @@ async def handle_llm(node: Dict, context: Dict) -> NodeResult:
         else:
             response = await asyncio.to_thread(llm.invoke, messages)
             output = response.content
+
+        if connected_tools and "ACTION:" in output:
+            action_line = output.split("ACTION:")[-1].split("\n")[0].strip()
+            tool_name = action_line.split("(")[0].strip()
+            if tool_name in connected_tools:
+                params = _parse_action_params(action_line)
+                params = _fix_param_names(tool_name, params)
+                tool_result = await asyncio.to_thread(execute_tool, tool_name, params)
+                messages.append(HumanMessage(content=output))
+                messages.append(HumanMessage(content=f"Tool result: {tool_result[:2000]}"))
+                if stream_callback:
+                    collected = []
+                    for chunk in llm.stream(messages):
+                        if chunk.content:
+                            collected.append(chunk.content)
+                            await stream_callback(node_id, node_type, chunk.content)
+                    output = "".join(collected)
+                else:
+                    response = await asyncio.to_thread(llm.invoke, messages)
+                    output = response.content
+
         context["current_input"] = output
         return NodeResult(output=output)
     except Exception as e:

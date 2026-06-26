@@ -1,13 +1,48 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+
+# Build output
+dist/
+build/
+*.egg-info/
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-venv/
+*.pyd
+
+# Environment
 .env
-node_modules/
-dist/
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
-data/
+
+# Runtime data
 backend/data/
-frontend/.vite/
-*.txt
+backend/uploads/
+backend/workspace/
+backend/*.txt
+backend/*.md
 !backend/requirements.txt
+
+# Frontend cache
+frontend/.vite/
+
+# Docker (removed)
+docker-compose.yml
+Dockerfile

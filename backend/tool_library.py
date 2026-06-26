@@ -8,30 +8,22 @@ import tempfile
 from typing import Any, Dict, Optional
 from pathlib import Path
 
+WORKSPACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workspace")
+os.makedirs(WORKSPACE_DIR, exist_ok=True)
+
 
 def web_search(query: str, num_results: int = 5) -> str:
     try:
-        from websearch.layer1_search.adapters.ddgs_engine import DdgsAdapter
-        from websearch.layer1_search.router import SearchRouter
-        from websearch.layer1_search.models import SearchRequest
-
-        adapter = DdgsAdapter()
-        router = SearchRouter([adapter])
-        request = SearchRequest(query=query, count=num_results)
-        result = router.search(request)
-
-        if not result.ok:
-            return f"Search error: {result.error}"
-
-        results = result.data.get("results", [])
+        from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=num_results))
         if not results:
             return "No results found."
-
         output_lines = []
         for i, r in enumerate(results, 1):
             output_lines.append(f"{i}. {r.get('title', 'No title')}")
-            output_lines.append(f"   URL: {r.get('url', 'N/A')}")
-            output_lines.append(f"   {r.get('snippet', 'No description')}")
+            output_lines.append(f"   URL: {r.get('href', 'N/A')}")
+            output_lines.append(f"   {r.get('body', 'No description')}")
             output_lines.append("")
         return "\n".join(output_lines)
     except Exception as e:
@@ -41,6 +33,8 @@ def web_search(query: str, num_results: int = 5) -> str:
 def read_file(file_path: str, **kwargs) -> str:
     try:
         path = Path(file_path)
+        if not path.is_absolute():
+            path = Path(WORKSPACE_DIR) / file_path
         if not path.exists():
             return f"Error: File not found: {file_path}"
         suffix = path.suffix.lower()
@@ -84,24 +78,27 @@ def read_file(file_path: str, **kwargs) -> str:
 def write_file(file_path: str, content: str, **kwargs) -> str:
     try:
         path = Path(file_path)
+        if not path.is_absolute():
+            path = Path(WORKSPACE_DIR) / file_path
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
-        return f"Successfully wrote {len(content)} bytes to {file_path}"
+        return f"Successfully wrote {len(content)} bytes to {path}"
     except Exception as e:
         return f"Error writing file: {str(e)}"
 
 
 def run_code(code: str, **kwargs) -> str:
     try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, dir=WORKSPACE_DIR) as f:
             f.write(code)
             temp_path = f.name
         result = subprocess.run(
             ["python", temp_path],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            cwd=WORKSPACE_DIR
         )
         os.unlink(temp_path)
         output = result.stdout
@@ -187,7 +184,10 @@ def run_command(command: str, working_directory: str = "", timeout: int = 60, **
             shell_cmd = ["cmd", "/c", command]
         else:
             shell_cmd = ["bash", "-c", command]
-        cwd = working_directory if working_directory and Path(working_directory).is_dir() else None
+        if working_directory and Path(working_directory).is_dir():
+            cwd = working_directory
+        else:
+            cwd = WORKSPACE_DIR
         result = subprocess.run(
             shell_cmd,
             capture_output=True,
@@ -216,25 +216,37 @@ def get_datetime(format_str: str = "%Y-%m-%d %H:%M:%S", **kwargs) -> str:
     return datetime.datetime.now().strftime(format_str)
 
 
-def playwright_browser(action: str = "goto", url: str = "", browser: str = "chromium",
+def playwright_browser(action: str = "goto", url: str = "", browser: str = "chrome",
                        selector: str = "", text: str = "", screenshot: str = "",
                        wait_seconds: int = 3, **kwargs) -> str:
     try:
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            browser_type = getattr(p, browser, p.chromium)
-            launch_opts = {"headless": True}
-            if browser == "chromium":
-                launch_opts["channel"] = "chrome"
-            elif browser == "brave":
-                launch_opts["channel"] = "brave"
+            browser_type = p.chromium
+            if browser == "brave":
+                brave_path = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
+                launch_opts = {"headless": True, "executable_path": brave_path}
+            elif browser == "msedge":
+                launch_opts = {"headless": True, "channel": "msedge"}
+            elif browser == "firefox":
+                browser_type = p.firefox
+                launch_opts = {"headless": True}
+            elif browser == "webkit":
+                browser_type = p.webkit
+                launch_opts = {"headless": True}
+            else:
+                launch_opts = {"headless": True, "channel": "chrome"}
 
             pw_browser = browser_type.launch(**launch_opts)
             page = pw_browser.new_page()
 
+            if url and not url.startswith(("http://", "https://")):
+                url = "https://" + url
+
             if action == "goto" and url:
                 page.goto(url, timeout=30000)
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(2000)
                 title = page.title()
                 content = page.content()[:15000]
                 pw_browser.close()
@@ -242,7 +254,8 @@ def playwright_browser(action: str = "goto", url: str = "", browser: str = "chro
 
             elif action == "click" and selector:
                 page.goto(url, timeout=30000) if url else None
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(2000)
                 page.click(selector)
                 page.wait_for_timeout(wait_seconds * 1000)
                 content = page.content()[:15000]
@@ -251,7 +264,8 @@ def playwright_browser(action: str = "goto", url: str = "", browser: str = "chro
 
             elif action == "type" and selector and text:
                 page.goto(url, timeout=30000) if url else None
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(2000)
                 page.fill(selector, text)
                 content = page.content()[:15000]
                 pw_browser.close()
@@ -259,7 +273,8 @@ def playwright_browser(action: str = "goto", url: str = "", browser: str = "chro
 
             elif action == "extract" and selector:
                 page.goto(url, timeout=30000) if url else None
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(2000)
                 elements = page.query_selector_all(selector)
                 texts = [el.inner_text() for el in elements[:20]]
                 pw_browser.close()
@@ -267,15 +282,19 @@ def playwright_browser(action: str = "goto", url: str = "", browser: str = "chro
 
             elif action == "screenshot":
                 page.goto(url, timeout=30000) if url else None
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(3000)
                 screenshot_path = screenshot or "screenshot.png"
+                if not os.path.isabs(screenshot_path):
+                    screenshot_path = os.path.join(WORKSPACE_DIR, screenshot_path)
                 page.screenshot(path=screenshot_path, full_page=True)
                 pw_browser.close()
                 return f"Screenshot saved to: {screenshot_path}"
 
             elif action == "evaluate" and text:
                 page.goto(url, timeout=30000) if url else None
-                page.wait_for_load_state("networkidle", timeout=15000)
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_timeout(2000)
                 result = page.evaluate(text)
                 pw_browser.close()
                 return f"Result: {str(result)[:5000]}"
@@ -379,14 +398,14 @@ TOOL_DEFINITIONS = {
     },
     "playwright_browser": {
         "name": "playwright_browser",
-        "description": "Browse the web using Playwright (Chrome, Brave, Edge)",
+        "description": "Browse the web using Playwright (Chromium, Chrome, Brave, Edge, Firefox, WebKit)",
         "handler": playwright_browser,
         "params": [
             {"name": "action", "type": "select", "required": True, "label": "Action",
              "options": ["goto", "click", "type", "extract", "screenshot", "evaluate"]},
             {"name": "url", "type": "string", "required": False, "label": "URL"},
-            {"name": "browser", "type": "select", "required": False, "label": "Browser", "default": "chromium",
-             "options": ["chromium", "firefox", "webkit"]},
+            {"name": "browser", "type": "select", "required": False, "label": "Browser", "default": "chrome",
+             "options": ["chrome", "brave", "msedge", "chromium", "firefox", "webkit"]},
             {"name": "selector", "type": "string", "required": False, "label": "CSS Selector"},
             {"name": "text", "type": "string", "required": False, "label": "Text / JS Code"},
             {"name": "screenshot", "type": "string", "required": False, "label": "Screenshot Path"},

@@ -91,6 +91,7 @@ class WorkflowRunner:
         self.context["stream_node_id"] = ""
         self.context["stream_node_type"] = ""
         graph = self._build_graph(workflow)
+        self.context["graph"] = graph
         if not graph["start_nodes"]:
             await self.log("Error: No starting node found. Add an Input node.", status="error")
             return {"status": "error", "output": "No starting node found", "logs": self.logs}

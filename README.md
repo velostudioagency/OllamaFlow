@@ -1,83 +1,152 @@
+<div align="center">
+
 # OllamaFlow
 
-A visual, node-based workflow builder for creating and running local Ollama AI agents.
+**Visual AI Workflow Builder — Drag, Connect, Run.**
 
-## Prerequisites
+Build local AI agents by connecting nodes on a canvas. No cloud required.
 
-- Python 3.10+
-- Node.js 18+
-- Ollama running locally on port 11434
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
+
+</div>
+
+---
+
+OllamaFlow is a local-first, visual workflow builder for creating AI agents powered by [Ollama](https://ollama.com) and [Groq](https://groq.com). Drag nodes onto a canvas, connect them, configure each step, and run — all from your machine with zero cloud dependency.
+
+## Features
+
+- **8 Node Types** — Input, LLM, Tool, Memory, Condition, Loop, Agent, Output
+- **10 Built-in Tools** — Web search, file I/O, code execution, browser automation, HTTP requests, and more
+- **Dual AI Providers** — Ollama (local) and Groq (cloud) with live switching
+- **Real-time Streaming** — Token-by-token output via WebSocket as workflows execute
+- **Visual Canvas** — Drag-and-drop ReactFlow interface with minimap and controls
+- **Persistent Memory** — Short-term and long-term memory backed by ChromaDB vector search
+- **Save & Load** — Export/import workflows as JSON files
+- **Schedule Workflows** — Run workflows on intervals automatically
+- **File Upload** — Attach files directly to workflow inputs
+- **Dark Theme** — Full dark UI with node status animations
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- [Ollama](https://ollama.com) running locally
+
 ### 1. Install Ollama
 
-Download from [ollama.ai](https://ollama.ai) and pull a model:
+Download from [ollama.com](https://ollama.com) and pull a model:
 
 ```bash
 ollama pull llama3.1:8b
 ```
 
-### 2. Backend Setup
+### 2. One-Click Install (Windows)
 
 ```bash
+install.bat
+```
+
+### 3. Manual Install
+
+```bash
+# Backend
 cd backend
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+
+# Frontend
+cd ../frontend
+npm install
 ```
 
-### 3. Frontend Setup
+### 4. Start
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# Windows
+start.bat
+
+# macOS/Linux
+cd backend && uvicorn main:app --reload --port 8000 &
+cd frontend && npm run dev
 ```
 
-### 4. Open
-
-Visit http://localhost:5173
-
-## Usage
-
-1. **Drag nodes** from the left sidebar onto the canvas
-2. **Connect nodes** by dragging from one handle to another
-3. **Configure nodes** by clicking them and editing the right panel
-4. **Run workflows** with the green Run button in the toolbar
-5. **Save/Load** workflows as JSON files
-6. **Try examples** from the Examples dropdown
+Open **http://localhost:5173**
 
 ## Node Types
 
-| Node | Color | Description |
-|------|-------|-------------|
-| Input | Blue | Starting point - provides initial prompt |
-| LLM | Purple | Sends input to an Ollama model |
-| Tool | Orange | Web search, file I/O, code execution |
-| Memory | Green | Short-term or long-term agent memory |
-| Condition | Yellow | If/else branching logic |
-| Loop | Pink | Repeat action N times |
-| Agent | Red | Full autonomous agent with tools |
-| Output | Gray | End of workflow - shows result |
+| Node | Color | Purpose |
+|------|-------|---------|
+| **Input** | Blue | Starting point — text prompt, file upload, or schedule trigger |
+| **LLM** | Purple | Send input to an Ollama or Groq model with custom system prompts |
+| **Tool** | Orange | Execute tools: search, files, code, HTTP, email, browser automation |
+| **Memory** | Green | Remember, recall, search, or clear agent memory |
+| **Condition** | Yellow | If/else branching with True/False output handles |
+| **Loop** | Pink | Repeat an action N times with optional stop conditions |
+| **Agent** | Red | Full autonomous agent — LLM + tools + multi-step reasoning loop |
+| **Output** | Gray | End of workflow — displays the final result |
 
-## API Endpoints
+## Built-in Tools
 
-- `GET /api/models` - List available Ollama models
-- `GET /api/tools` - List available tools
-- `POST /api/run` - Execute a workflow
-- `WS /ws/run` - WebSocket for streaming execution logs
-- `POST /api/save` - Save workflow
-- `GET /api/load/{name}` - Load workflow
-- `GET /api/workflows` - List saved workflows
+| Tool | Description |
+|------|-------------|
+| `web_search` | Multi-engine web search via DuckDuckGo |
+| `read_file` | Read txt, md, py, json, csv, pdf, docx, xlsx |
+| `write_file` | Write content to files in the workspace |
+| `run_code` | Execute Python code with timeout |
+| `run_command` | Run shell commands (cross-platform) |
+| `send_email` | Send emails via SMTP |
+| `http_request` | REST API calls (GET, POST, PUT, DELETE, PATCH) |
+| `calculate` | Evaluate math expressions |
+| `get_datetime` | Get formatted current date/time |
+| `playwright_browser` | Full browser automation (Chrome, Firefox, Safari, etc.) |
+
+## Example Workflows
+
+OllamaFlow ships with example workflows you can load from the toolbar:
+
+- **Web Research Agent** — Search the web, extract info, and summarize findings
+- **File Summarizer** — Read a file and generate a summary
+- **Multi-Step Research Report** — End-to-end research pipeline with web search + LLM analysis
+
+## API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/models` | GET | List available Ollama models |
+| `/api/tools` | GET | List available tools |
+| `/api/node-types` | GET | List node type definitions |
+| `/api/run` | POST | Execute a workflow |
+| `/ws/run` | WS | WebSocket for streaming execution logs |
+| `/api/save` | POST | Save a workflow |
+| `/api/load/{name}` | GET | Load a workflow |
+| `/api/workflows` | GET | List saved workflows |
+| `/api/upload` | POST | Upload a file |
+| `/api/schedule` | POST | Create a workflow schedule |
+| `/api/settings` | GET/POST | Get or update settings |
+| `/api/health` | GET | Health check |
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, LangChain, ChromaDB
-- **Frontend**: React, ReactFlow, TailwindCSS, Axios
-- **AI Engine**: Ollama (local LLM inference)
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Python, FastAPI, LangChain, ChromaDB |
+| **Frontend** | React, ReactFlow, TailwindCSS, Vite |
+| **AI Engine** | Ollama (local), Groq (cloud) |
+| **Real-time** | WebSocket streaming |
+| **Memory** | JSON + ChromaDB vector search |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
+## License
+
+[MIT](LICENSE)

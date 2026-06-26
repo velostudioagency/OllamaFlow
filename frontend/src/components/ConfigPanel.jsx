@@ -296,7 +296,7 @@ export default function ConfigPanel({ node, onUpdateConfig, onUpdateLabel, onDel
     playwright_browser: [
       { name: 'action', label: 'Action', type: 'select', options: ['goto', 'click', 'type', 'extract', 'screenshot', 'evaluate'], required: true },
       { name: 'url', label: 'URL', type: 'string' },
-      { name: 'browser', label: 'Browser', type: 'select', options: ['chromium', 'firefox', 'webkit'], default: 'chromium' },
+      { name: 'browser', label: 'Browser', type: 'select', options: ['chrome', 'brave', 'msedge', 'chromium', 'firefox', 'webkit'], default: 'chrome' },
       { name: 'selector', label: 'CSS Selector', type: 'string' },
       { name: 'text', label: 'Text / JS Code', type: 'textarea' },
       { name: 'screenshot', label: 'Screenshot Path', type: 'string' },
