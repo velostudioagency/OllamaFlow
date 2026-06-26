@@ -23,6 +23,9 @@ class SettingsManager:
             "groq_api_key": "",
             "groq_model": "llama-3.3-70b-versatile",
             "provider": "ollama",
+            "search_provider": "auto",
+            "brave_api_key": "",
+            "searxng_url": "",
         }
 
     def _save(self):
@@ -45,6 +48,13 @@ class SettingsManager:
 
     def get_provider(self) -> str:
         return self.settings.get("provider", "ollama")
+
+    def get_search_settings(self) -> Dict:
+        return {
+            "search_provider": self.settings.get("search_provider", "auto"),
+            "brave_api_key": self.settings.get("brave_api_key", ""),
+            "searxng_url": self.settings.get("searxng_url", ""),
+        }
 
 
 settings_manager = SettingsManager()

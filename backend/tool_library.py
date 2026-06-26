@@ -1,33 +1,176 @@
 import os
 import json
 import math
+import re
 import datetime
 import requests
 import subprocess
 import tempfile
-from typing import Any, Dict, Optional
+import hashlib
+from typing import Any, Dict, List, Optional
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 WORKSPACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workspace")
 os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
 
-def web_search(query: str, num_results: int = 5) -> str:
+def _dedup_results(all_results: List[Dict]) -> List[Dict]:
+    seen_urls = set()
+    deduped = []
+    for r in all_results:
+        url = r.get("href", "").rstrip("/").lower()
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            deduped.append(r)
+    return deduped
+
+
+def _search_duckduckgo(query: str, num_results: int) -> List[Dict]:
     try:
         from duckduckgo_search import DDGS
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=num_results))
-        if not results:
-            return "No results found."
-        output_lines = []
-        for i, r in enumerate(results, 1):
-            output_lines.append(f"{i}. {r.get('title', 'No title')}")
-            output_lines.append(f"   URL: {r.get('href', 'N/A')}")
-            output_lines.append(f"   {r.get('body', 'No description')}")
-            output_lines.append("")
-        return "\n".join(output_lines)
-    except Exception as e:
-        return f"Search error: {str(e)}"
+        return [{"title": r.get("title", ""), "href": r.get("href", ""), "body": r.get("body", ""), "engine": "duckduckgo"} for r in results]
+    except Exception:
+        return []
+
+
+def _search_bing_scrape(query: str, num_results: int) -> List[Dict]:
+    try:
+        import xml.etree.ElementTree as ET
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        resp = requests.get(
+            "https://www.bing.com/search",
+            params={"q": query, "format": "rss", "count": num_results},
+            headers=headers,
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return []
+        root = ET.fromstring(resp.text)
+        items = root.findall(".//item")
+        results = []
+        for item in items[:num_results]:
+            title_el = item.find("title")
+            link_el = item.find("link")
+            desc_el = item.find("description")
+            title = title_el.text if title_el is not None else ""
+            link = link_el.text if link_el is not None else ""
+            desc = desc_el.text if desc_el is not None else ""
+            import re as _re
+            desc = _re.sub(r"<[^>]+>", "", desc or "").strip()
+            if title and link:
+                results.append({"title": title, "href": link, "body": desc, "engine": "bing"})
+        return results
+    except Exception:
+        return []
+
+
+def _search_brave_api(query: str, num_results: int, api_key: str) -> List[Dict]:
+    try:
+        resp = requests.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            params={"q": query, "count": num_results},
+            headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for r in data.get("web", {}).get("results", []):
+            results.append({
+                "title": r.get("title", ""),
+                "href": r.get("url", ""),
+                "body": r.get("description", ""),
+                "engine": "brave",
+            })
+        return results
+    except Exception:
+        return []
+
+
+def _search_searxng(query: str, num_results: int, base_url: str) -> List[Dict]:
+    try:
+        resp = requests.get(
+            f"{base_url.rstrip('/')}/search",
+            params={"q": query, "format": "json", "engines": "google,bing,duckduckgo"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        results = []
+        for r in data.get("results", []):
+            results.append({
+                "title": r.get("title", ""),
+                "href": r.get("url", ""),
+                "body": r.get("content", ""),
+                "engine": r.get("engine", "searxng"),
+            })
+        return results[:num_results]
+    except Exception:
+        return []
+
+
+def web_search(query: str, num_results: int = 5) -> str:
+    try:
+        from settings_manager import settings_manager
+        search_settings = settings_manager.get_search_settings()
+    except Exception:
+        search_settings = {"search_provider": "auto", "brave_api_key": "", "searxng_url": ""}
+
+    provider = search_settings.get("search_provider", "auto")
+    brave_key = search_settings.get("brave_api_key", "")
+    searxng_url = search_settings.get("searxng_url", "")
+
+    fetch_count = max(num_results * 3, 15)
+    all_results: List[Dict] = []
+
+    if provider == "brave" and brave_key:
+        all_results = _search_brave_api(query, num_results, brave_key)
+    elif provider == "searxng" and searxng_url:
+        all_results = _search_searxng(query, num_results, searxng_url)
+    elif provider == "duckduckgo":
+        all_results = _search_duckduckgo(query, num_results)
+    else:
+        engines = []
+        if brave_key:
+            engines.append(("brave", lambda: _search_brave_api(query, fetch_count, brave_key)))
+        if searxng_url:
+            engines.append(("searxng", lambda: _search_searxng(query, fetch_count, searxng_url)))
+        engines.append(("duckduckgo", lambda: _search_duckduckgo(query, fetch_count)))
+        engines.append(("bing", lambda: _search_bing_scrape(query, fetch_count)))
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(fn): name for name, fn in engines}
+            for future in as_completed(futures, timeout=20):
+                engine_name = futures[future]
+                try:
+                    results = future.result()
+                    all_results.extend(results)
+                except Exception:
+                    pass
+
+    all_results = _dedup_results(all_results)
+
+    if not all_results:
+        return "No results found."
+
+    final = all_results[:num_results]
+    output_lines = []
+    engines_used = set()
+    for i, r in enumerate(final, 1):
+        engines_used.add(r.get("engine", "unknown"))
+        output_lines.append(f"{i}. {r.get('title', 'No title')}")
+        output_lines.append(f"   URL: {r.get('href', 'N/A')}")
+        output_lines.append(f"   {r.get('body', 'No description')}")
+        output_lines.append("")
+    output_lines.append(f"--- Sources: {', '.join(sorted(engines_used))} ---")
+    return "\n".join(output_lines)
 
 
 def read_file(file_path: str, **kwargs) -> str:
