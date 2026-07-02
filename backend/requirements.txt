@@ -4,6 +4,9 @@ websockets
 langchain
 langchain-ollama
 langchain-community
+langchain-groq
+langchain-openai
+langchain-anthropic
 chromadb
 duckduckgo-search
 pypdf
@@ -14,3 +17,14 @@ pandas
 reportlab
 aiofiles
 httpx
+feedparser
+playwright
+pytest
+pytest-asyncio
+browser-use
+crawl4ai
+firecrawl-py
+crawlee[all]
+markitdown[all]
+rich
+prompt_toolkit
