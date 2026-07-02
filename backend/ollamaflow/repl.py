@@ -17,7 +17,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from ollamaflow.client import OllamaFlow
 from ollamaflow.ui import (
     console, print_banner, print_server_status, print_info,
-    print_success, print_error, print_markdown,
+    print_success, print_error, print_warning, print_markdown,
 )
 from ollamaflow.commands import CommandHandler, get_command_list
 from ollamaflow import server as server_mod
@@ -142,19 +142,23 @@ async def run_repl(url: str = None, token: str = None, no_server: bool = False, 
 
     # Server management
     if not no_server:
+        from ollamaflow.ui import prompt_confirm
+        from rich.status import Status
+
         server_running = server_mod.is_server_running(port=port)
         if server_running:
             print_server_status(port, True, 0)
         else:
-            from ollamaflow.ui import prompt_confirm
             if prompt_confirm("OllamaFlow API server not running. Start it?", default=True):
-                print_info("Starting OllamaFlow API server...")
-                success, pid = server_mod.start_server(port=port)
+                with Status("[cyan]Starting OllamaFlow API server...[/]", console=console, spinner="dots"):
+                    success, pid = server_mod.start_server(port=port)
                 if success:
                     print_success(f"OllamaFlow API server started (PID {pid})")
                     print_server_status(port, True, 0)
                 else:
-                    print_error("OllamaFlow API server failed to start. Continuing offline.")
+                    # pid is actually an error message here
+                    print_error(f"OllamaFlow API server failed to start: {pid}")
+                    print_info("Continuing offline.")
             else:
                 print_info("Continuing offline (list/import only).")
     else:

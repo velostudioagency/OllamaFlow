@@ -18,14 +18,22 @@ def ensure_dir():
     OLLAMAFLOW_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def is_server_running(host="http://localhost", port=8000):
-    """Check if the OllamaFlow API server is responding to health checks."""
+def is_server_running(host="localhost", port=8000):
+    """Check if the OllamaFlow API server is listening on the port."""
+    import socket
     try:
-        import httpx
-        resp = httpx.get(f"{host}:{port}/api/health", timeout=3)
-        return resp.status_code == 200
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            return s.connect_ex((host, port)) == 0
     except Exception:
         return False
+
+
+def is_port_in_use(port):
+    """Check if a port is already bound (by any process)."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
 
 
 def is_pid_running(pid):
@@ -67,8 +75,20 @@ def clear_pid():
 
 
 def start_server(port=8000, backend_dir=None):
-    """Start the OllamaFlow API server in the background."""
+    """
+    Start the OllamaFlow API server in the background.
+    Returns (success: bool, pid_or_error: int|str).
+    """
     ensure_dir()
+
+    # If the port is already responding, server is already up
+    if is_server_running(port=port):
+        existing_pid = get_stored_pid()
+        return True, existing_pid or 0
+
+    # If port is bound but health check fails, something else is using it
+    if is_port_in_use(port):
+        return False, f"Port {port} is already in use by another process"
 
     if backend_dir is None:
         backend_dir = str(Path(__file__).resolve().parent.parent)
@@ -85,19 +105,32 @@ def start_server(port=8000, backend_dir=None):
         "cwd": backend_dir,
         "stdout": log_f,
         "stderr": subprocess.STDOUT,
-        "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
     }
 
-    proc = subprocess.Popen(cmd, **kwargs)
+    try:
+        proc = subprocess.Popen(cmd, **kwargs)
+    except Exception as e:
+        return False, f"Failed to launch server process: {e}"
+
     store_pid(proc.pid)
 
-    # Wait for server to become healthy
-    for _ in range(30):
+    # Poll for port — up to 15 seconds
+    for i in range(15):
         time.sleep(1)
+        # Check if process died early
+        if not is_pid_running(proc.pid):
+            clear_pid()
+            try:
+                log_content = LOG_FILE.read_text()
+                last_lines = log_content.strip().split("\n")[-3:]
+                error_detail = " | ".join(last_lines)
+            except Exception:
+                error_detail = "check log file"
+            return False, f"Server process exited after {i}s — {error_detail}"
         if is_server_running(port=port):
             return True, proc.pid
 
-    return False, proc.pid
+    return False, f"Server started but did not respond after 15s. Check {LOG_FILE}"
 
 
 def stop_server():

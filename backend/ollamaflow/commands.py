@@ -531,12 +531,14 @@ class CommandHandler:
             print_info(f"OllamaFlow API server already running on port {port}.")
             return True
 
-        print_info(f"Starting OllamaFlow API server on port {port}...")
-        success, pid = server_mod.start_server(port=port)
+        from rich.status import Status
+        with Status(f"[cyan]Starting OllamaFlow API server on port {port}...[/]", console=console, spinner="dots"):
+            success, pid = server_mod.start_server(port=port)
         if success:
             print_success(f"OllamaFlow API server started (PID {pid}) on port {port}")
         else:
-            print_error(f"OllamaFlow API server failed to start. Check {server_mod.LOG_FILE}")
+            # pid is actually an error message here
+            print_error(f"OllamaFlow API server failed to start: {pid}")
         return True
 
     async def cmd_stop(self, args: str) -> bool:
