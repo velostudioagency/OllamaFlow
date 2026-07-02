@@ -39,13 +39,13 @@ def get_command_list():
         ("export", "Export workflow to JSON file"),
         ("models", "List available Ollama models"),
         ("tools", "List available tools with descriptions"),
-        ("serve", "Start the server (if not running)"),
-        ("stop", "Stop the server"),
-        ("status", "Show server status, active workflow, Ollama connection"),
+        ("serve", "Start the OllamaFlow API server (if not running)"),
+        ("stop", "Stop the OllamaFlow API server"),
+        ("status", "Show API server status, active workflow, Ollama connection"),
         ("clear", "Clear the terminal"),
         ("banner", "Show full ASCII art banner"),
-        ("exit", "Exit the REPL (server stays running)"),
-        ("quit", "Exit the REPL (server stays running)"),
+        ("exit", "Exit the REPL (API server stays running)"),
+        ("quit", "Exit the REPL (API server stays running)"),
     ]
 
 
@@ -522,25 +522,25 @@ class CommandHandler:
         return True
 
     async def cmd_serve(self, args: str) -> bool:
-        """Start the server."""
+        """Start the OllamaFlow API server."""
         port = 8000
         if args.strip().isdigit():
             port = int(args.strip())
 
         if server_mod.is_server_running(port=port):
-            print_info(f"Server already running on port {port}.")
+            print_info(f"OllamaFlow API server already running on port {port}.")
             return True
 
-        print_info(f"Starting server on port {port}...")
+        print_info(f"Starting OllamaFlow API server on port {port}...")
         success, pid = server_mod.start_server(port=port)
         if success:
-            print_success(f"Server started (PID {pid}) on port {port}")
+            print_success(f"OllamaFlow API server started (PID {pid}) on port {port}")
         else:
-            print_error(f"Server failed to start. Check {server_mod.LOG_FILE}")
+            print_error(f"OllamaFlow API server failed to start. Check {server_mod.LOG_FILE}")
         return True
 
     async def cmd_stop(self, args: str) -> bool:
-        """Stop the server."""
+        """Stop the OllamaFlow API server."""
         success, msg = server_mod.stop_server()
         if success:
             print_success(msg)
@@ -561,7 +561,7 @@ class CommandHandler:
         table = box=RichTable(box=None, show_header=False)
         table.add_column("Key", style="cyan")
         table.add_column("Value")
-        table.add_row("Server", "[green]Running[/]" if info["running"] else "[red]Stopped[/]")
+        table.add_row("OllamaFlow API", "[green]Running[/]" if info["running"] else "[red]Stopped[/]")
         table.add_row("Port", str(info["port"]))
         table.add_row("PID", str(info["pid"]) if info["pid"] else "N/A")
         table.add_row("Active Workflow", active or "[dim]None[/]")

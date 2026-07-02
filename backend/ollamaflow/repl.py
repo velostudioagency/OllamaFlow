@@ -147,14 +147,14 @@ async def run_repl(url: str = None, token: str = None, no_server: bool = False, 
             print_server_status(port, True, 0)
         else:
             from ollamaflow.ui import prompt_confirm
-            if prompt_confirm("Server not running. Start it?", default=True):
-                print_info("Starting server...")
+            if prompt_confirm("OllamaFlow API server not running. Start it?", default=True):
+                print_info("Starting OllamaFlow API server...")
                 success, pid = server_mod.start_server(port=port)
                 if success:
-                    print_success(f"Server started (PID {pid})")
+                    print_success(f"OllamaFlow API server started (PID {pid})")
                     print_server_status(port, True, 0)
                 else:
-                    print_error("Server failed to start. Continuing offline.")
+                    print_error("OllamaFlow API server failed to start. Continuing offline.")
             else:
                 print_info("Continuing offline (list/import only).")
     else:

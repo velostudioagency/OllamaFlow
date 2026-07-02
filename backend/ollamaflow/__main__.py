@@ -4,8 +4,8 @@ OllamaFlow CLI - Interactive REPL for building and running AI workflows.
 
 Usage:
     python -m ollamaflow                       Start interactive REPL
-    python -m ollamaflow --no-server           Start REPL without auto-starting server
-    python -m ollamaflow --port 9000           Start REPL on a specific server port
+    python -m ollamaflow --no-server           Start REPL without auto-starting the API server
+    python -m ollamaflow --port 9000           Start REPL on a specific API server port
 """
 
 import argparse
@@ -26,9 +26,9 @@ def main():
     parser.add_argument("--token", "-t",
                         help="API authentication token")
     parser.add_argument("--no-server", action="store_true",
-                        help="Skip auto-starting the server")
+                        help="Skip auto-starting the OllamaFlow API server")
     parser.add_argument("--port", "-p", type=int, default=8000,
-                        help="Server port (default: 8000)")
+                        help="OllamaFlow API server port (default: 8000)")
 
     args = parser.parse_args()
 

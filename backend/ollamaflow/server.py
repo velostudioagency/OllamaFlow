@@ -1,5 +1,5 @@
 """
-OllamaFlow CLI - Auto-server management: health check, background start, PID tracking.
+OllamaFlow CLI - OllamaFlow API server management: health check, background start, PID tracking.
 """
 
 import os
@@ -19,7 +19,7 @@ def ensure_dir():
 
 
 def is_server_running(host="http://localhost", port=8000):
-    """Check if the server is responding to health checks."""
+    """Check if the OllamaFlow API server is responding to health checks."""
     try:
         import httpx
         resp = httpx.get(f"{host}:{port}/api/health", timeout=3)
@@ -67,7 +67,7 @@ def clear_pid():
 
 
 def start_server(port=8000, backend_dir=None):
-    """Start the OllamaFlow server in the background."""
+    """Start the OllamaFlow API server in the background."""
     ensure_dir()
 
     if backend_dir is None:
@@ -101,14 +101,14 @@ def start_server(port=8000, backend_dir=None):
 
 
 def stop_server():
-    """Stop the tracked server process."""
+    """Stop the tracked OllamaFlow API server process."""
     pid = get_stored_pid()
     if pid is None:
-        return False, "No server PID found."
+        return False, "No OllamaFlow API server PID found."
 
     if not is_pid_running(pid):
         clear_pid()
-        return False, "Server process not running (stale PID)."
+        return False, "OllamaFlow API server process not running (stale PID)."
 
     try:
         if sys.platform == "win32":
@@ -119,9 +119,9 @@ def stop_server():
             if is_pid_running(pid):
                 os.kill(pid, signal.SIGKILL)
         clear_pid()
-        return True, f"Server (PID {pid}) stopped."
+        return True, f"OllamaFlow API server (PID {pid}) stopped."
     except Exception as e:
-        return False, f"Failed to stop server: {e}"
+        return False, f"Failed to stop OllamaFlow API server: {e}"
 
 
 def get_server_info(port=8000):

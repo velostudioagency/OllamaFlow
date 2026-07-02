@@ -42,7 +42,7 @@ def print_server_status(port, ollama_connected, model_count):
     """Print the server status line."""
     ollama_text = "[green]connected[/]" if ollama_connected else "[red]disconnected[/]"
     console.print(
-        f"[dim]Server: :{port} | Ollama: {ollama_text} | Models: {model_count}[/]"
+        f"[dim]OllamaFlow API: :{port} | Ollama: {ollama_text} | Models: {model_count}[/]"
     )
 
 
