@@ -11,7 +11,7 @@ Build local AI agents by connecting nodes on a canvas. No cloud required.
 [![React 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 
-https://github.com/velostudioagency/OllamaFlow/blob/main/media/v2.mp4
+<video src="https://github.com/velostudioagency/OllamaFlow/raw/main/media/v2.mp4" controls width="100%"></video>
 
 </div>
 
