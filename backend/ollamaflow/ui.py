@@ -3,6 +3,26 @@ OllamaFlow CLI - UI helpers: banner, colors, panels, tables, markdown rendering.
 """
 
 import os
+import sys
+
+
+def _setup_windows_console():
+    if sys.platform != "win32":
+        return
+    try:
+        import msvcrt
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = msvcrt.get_osfhandle(sys.stdout.fileno())
+        mode = ctypes.c_ulong()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+    except Exception:
+        pass
+
+
+_setup_windows_console()
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -11,7 +31,8 @@ from rich.markdown import Markdown
 from rich.columns import Columns
 from rich import box
 
-console = Console()
+_output = open(sys.stdout.fileno(), mode="w", buffering=1, closefd=False)
+console = Console(file=_output, force_terminal=True, legacy_windows=False)
 
 VERSION = "0.1.0"
 
@@ -153,11 +174,13 @@ def prompt_choice(prompt_text, options, allow_empty=False):
             return None
 
 
-def prompt_input(prompt_text, default=None, password=False):
+def prompt_input(prompt_text, default=None, password=False, allow_empty=False):
     """Prompt for text input with optional default."""
     suffix = f" [dim][{default}][/]" if default else ""
     try:
         value = console.input(f"[bold]{prompt_text}{suffix}[/] > ").strip()
+        if not value and allow_empty:
+            return None
         if not value and default is not None:
             return default
         return value

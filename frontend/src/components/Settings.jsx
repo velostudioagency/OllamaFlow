@@ -7,6 +7,11 @@ export default function Settings({ onClose }) {
     provider: 'ollama',
     groq_api_key: '',
     groq_model: 'llama-3.3-70b-versatile',
+    openai_api_key: '',
+    openai_base_url: 'https://api.openai.com/v1',
+    openai_model: 'gpt-4o',
+    anthropic_api_key: '',
+    anthropic_model: 'claude-sonnet-4-20250514',
     ollama_base: 'http://localhost:11434',
     default_model: 'llama3.1:8b',
     search_provider: 'auto',
@@ -62,7 +67,7 @@ export default function Settings({ onClose }) {
       <div className="bg-[#141414] border border-[#333] rounded-xl w-[520px] max-h-[80vh] overflow-hidden flex flex-col">
         <div className="px-5 py-4 border-b border-[#333] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-blue-500" />
+            <Cpu className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-sm font-semibold text-white">Settings</span>
           </div>
           <button onClick={onClose} className="p-1 text-gray-500 hover:text-white transition">
@@ -75,18 +80,23 @@ export default function Settings({ onClose }) {
             <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1">
               <Cpu className="w-3 h-3" /> AI Provider
             </p>
-            <div className="flex gap-2">
-              {['ollama', 'groq'].map((p) => (
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { id: 'ollama', label: 'Ollama (Local)' },
+                { id: 'groq', label: 'Groq' },
+                { id: 'openai', label: 'OpenAI' },
+                { id: 'anthropic', label: 'Anthropic' },
+              ].map((p) => (
                 <button
-                  key={p}
-                  onClick={() => setSettings(prev => ({ ...prev, provider: p }))}
+                  key={p.id}
+                  onClick={() => setSettings(prev => ({ ...prev, provider: p.id }))}
                   className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition ${
-                    settings.provider === p
+                    settings.provider === p.id
                       ? 'bg-blue-600/20 border-blue-500 text-blue-400'
                       : 'bg-[#0f0f0f] border-[#333] text-gray-400 hover:border-gray-500'
                   }`}
                 >
-                  {p === 'ollama' ? 'Ollama (Local)' : 'Groq (Cloud)'}
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -133,6 +143,74 @@ export default function Settings({ onClose }) {
                   className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                 >
                   {groqModels.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {settings.provider === 'openai' && (
+            <>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <Key className="w-3 h-3" /> OpenAI API Key
+                </p>
+                <input
+                  type="password"
+                  value={settings.openai_api_key}
+                  onChange={(e) => setSettings(prev => ({ ...prev, openai_api_key: e.target.value }))}
+                  placeholder="sk-..."
+                  className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Base URL</p>
+                <input
+                  type="text"
+                  value={settings.openai_base_url}
+                  onChange={(e) => setSettings(prev => ({ ...prev, openai_base_url: e.target.value }))}
+                  className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">For Azure or compatible APIs, change this URL</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Model</p>
+                <select
+                  value={settings.openai_model}
+                  onChange={(e) => setSettings(prev => ({ ...prev, openai_model: e.target.value }))}
+                  className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                >
+                  {['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1', 'o1-mini'].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {settings.provider === 'anthropic' && (
+            <>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <Key className="w-3 h-3" /> Anthropic API Key
+                </p>
+                <input
+                  type="password"
+                  value={settings.anthropic_api_key}
+                  onChange={(e) => setSettings(prev => ({ ...prev, anthropic_api_key: e.target.value }))}
+                  placeholder="sk-ant-..."
+                  className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Model</p>
+                <select
+                  value={settings.anthropic_model}
+                  onChange={(e) => setSettings(prev => ({ ...prev, anthropic_model: e.target.value }))}
+                  className="w-full bg-[#0f0f0f] border border-[#333] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                >
+                  {['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'].map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>

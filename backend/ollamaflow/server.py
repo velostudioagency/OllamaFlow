@@ -93,10 +93,21 @@ def start_server(port=8000, backend_dir=None):
     if backend_dir is None:
         backend_dir = str(Path(__file__).resolve().parent.parent)
 
+    # Prefer the project's venv Python over sys.executable to avoid
+    # inheriting an unrelated virtualenv that may lack dependencies.
+    project_python = Path(backend_dir) / "venv" / "Scripts" / "python.exe"
+    if not project_python.exists():
+        # Unix venv layout
+        project_python = Path(backend_dir) / "venv" / "bin" / "python"
+    if project_python.exists():
+        python_exe = str(project_python)
+    else:
+        python_exe = sys.executable
+
     log_f = open(LOG_FILE, "w")
 
     cmd = [
-        sys.executable, "-m", "uvicorn", "main:app",
+        python_exe, "-m", "uvicorn", "main:app",
         "--host", "0.0.0.0",
         "--port", str(port),
     ]

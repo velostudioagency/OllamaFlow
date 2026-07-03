@@ -10,7 +10,7 @@ const InputNode = memo(({ data, selected }) => {
   return (
     <div className="min-w-[180px]">
       <div className="bg-[#1a1a1a] rounded-t-lg px-3 py-1.5 border-b border-[#333] flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <Download className="w-3 h-3 text-blue-400" />
         <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wide">Input</span>
       </div>
       <div className="bg-[#1a1a1a] px-3 py-2 rounded-b-lg">

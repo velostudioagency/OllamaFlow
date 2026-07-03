@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Square, Save, FolderOpen, Plus, Zap, ChevronDown, Check, X, Settings as SettingsIcon } from 'lucide-react';
+import { Play, Square, Save, FolderOpen, Plus, Zap, ChevronDown, Check, X, Settings as SettingsIcon, MessageSquare, Upload, Download, Clock } from 'lucide-react';
 import axios from 'axios';
 
 export default function Toolbar({
@@ -14,6 +14,11 @@ export default function Toolbar({
   isRunning,
   ollamaStatus,
   onOpenSettings,
+  showChat,
+  onToggleChat,
+  onImportUrl,
+  onExport,
+  onShowHistory,
 }) {
   const [showExamples, setShowExamples] = useState(false);
   const [showLoad, setShowLoad] = useState(false);
@@ -124,6 +129,24 @@ export default function Toolbar({
           )}
         </div>
 
+        <button
+          onClick={onImportUrl}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-[#333] rounded transition"
+          title="Import from URL"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Import
+        </button>
+
+        <button
+          onClick={onExport}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-[#333] rounded transition"
+          title="Export Workflow"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export
+        </button>
+
         <div className="relative">
           <button
             onClick={() => {
@@ -137,7 +160,7 @@ export default function Toolbar({
           </button>
           {showExamples && (
             <div className="absolute top-full right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 w-64">
-              {['Web Research Agent', 'File Summarizer', 'Multi-Step Research Report'].map((name) => (
+              {['Web Research Agent', 'File Summarizer', 'Multi-Step Research Report', 'Data Pipeline', 'RAG Agent', 'Text Summarizer'].map((name) => (
                 <button
                   key={name}
                   onClick={() => {
@@ -156,11 +179,32 @@ export default function Toolbar({
         <div className="w-px h-6 bg-[#333] mx-1" />
 
         <button
+          onClick={onShowHistory}
+          className="p-1.5 text-gray-400 hover:text-white hover:bg-[#333] rounded transition"
+          title="Execution History"
+        >
+          <Clock className="w-4 h-4" />
+        </button>
+
+        <button
           onClick={onOpenSettings}
           className="p-1.5 text-gray-400 hover:text-white hover:bg-[#333] rounded transition"
           title="Settings"
         >
           <SettingsIcon className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={onToggleChat}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition ${
+            showChat
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-400 hover:text-white hover:bg-[#333]'
+          }`}
+          title="Chat Mode"
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          Chat
         </button>
 
         {isRunning ? (
@@ -182,7 +226,7 @@ export default function Toolbar({
         )}
 
         <div className="flex items-center gap-1.5 ml-2" title={`Ollama: ${ollamaStatus}`}>
-          <div className={`w-2 h-2 rounded-full ${ollamaStatus === 'connected' ? 'bg-green-500' : ollamaStatus === 'checking' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+          <Zap className={`w-3 h-3 ${ollamaStatus === 'connected' ? 'text-green-400' : ollamaStatus === 'checking' ? 'text-yellow-400 animate-pulse' : 'text-red-400'}`} />
         </div>
       </div>
     </div>

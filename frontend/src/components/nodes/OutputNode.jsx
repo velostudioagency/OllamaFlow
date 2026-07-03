@@ -6,9 +6,8 @@ const OutputNode = memo(({ data, selected }) => {
   return (
     <div className="min-w-[160px]">
       <div className="bg-[#1a1a1a] rounded-t-lg px-3 py-1.5 border-b border-[#333] flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-gray-500" />
+        <FileOutput className="w-3 h-3 text-gray-400" />
         <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wide">Output</span>
-        <FileOutput className="w-3 h-3 text-gray-400 ml-auto" />
       </div>
       <div className="bg-[#1a1a1a] px-3 py-2 rounded-b-lg">
         <p className="text-xs text-gray-400 text-center">Final Result</p>

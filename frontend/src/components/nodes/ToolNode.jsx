@@ -20,9 +20,8 @@ const ToolNode = memo(({ data, selected }) => {
   return (
     <div className="min-w-[180px]">
       <div className="bg-[#1a1a1a] rounded-t-lg px-3 py-1.5 border-b border-[#333] flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-orange-500" />
+        <Wrench className="w-3 h-3 text-orange-400" />
         <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-wide">Tool</span>
-        <Wrench className="w-3 h-3 text-orange-400 ml-auto" />
       </div>
       <div className="bg-[#1a1a1a] px-3 py-2 rounded-b-lg">
         <p className="text-xs text-white flex items-center gap-1.5">

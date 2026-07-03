@@ -220,6 +220,82 @@ def configure_node(node_type: str, available_tools: List[str] = None) -> Dict:
     return config
 
 
+def reconfigure_node(node: Dict, available_tools: List[str] = None) -> Dict:
+    """Reconfigure an existing node's settings interactively. Returns updated config."""
+    node_type = node.get("type", "")
+    current_config = node.get("config", {})
+    prompts = NODE_CONFIGS.get(node_type, [])
+
+    if not prompts:
+        print_info(f"No configurable fields for '{node_type}' node.")
+        return current_config
+
+    console.print(f"\n  [bold]Reconfigure '[cyan]{node['id']}[/]' ([dim]{node_type}[/]):[/]")
+    console.print("  [dim]Press Enter to keep current value.[/]\n")
+
+    config = dict(current_config)
+
+    for prompt_def in prompts:
+        field_name = prompt_def[0]
+        label = prompt_def[1]
+        schema_default = prompt_def[2]
+        field_type = prompt_def[3]
+        current_value = current_config.get(field_name, schema_default)
+
+        if field_type == "select" and len(prompt_def) > 4:
+            options = prompt_def[4]
+            display_val = str(current_value) if current_value else "(none)"
+            console.print(f"    [dim]{label}[/] [dim]current: {display_val}[/]")
+            value = prompt_choice(f"    {label} (pick new)", options)
+            if value is None:
+                value = current_value
+        elif field_type == "select_tool":
+            if available_tools:
+                tool_names = [t.get("name", "") if isinstance(t, dict) else str(t) for t in available_tools]
+                display_val = str(current_value) if current_value else "(none)"
+                console.print(f"    [dim]{label}[/] [dim]current: {display_val}[/]")
+                value = prompt_choice(f"    {label} (pick new)", tool_names)
+                if value is None:
+                    value = current_value
+            else:
+                value = prompt_input(f"    {label}", default=str(current_value) if current_value else "")
+        elif field_type == "textarea":
+            display_val = (current_value[:60] + "...") if current_value and len(current_value) > 60 else (current_value or "(empty)")
+            console.print(f"    [dim]{label}[/] [dim]current: {display_val}[/]")
+            console.print(f"    [dim]Enter new text (empty line to keep current):[/]")
+            lines = []
+            while True:
+                try:
+                    line = console.input("    > ")
+                    if not line and lines:
+                        break
+                    lines.append(line)
+                except (EOFError, KeyboardInterrupt):
+                    break
+            value = "\n".join(lines) if lines else current_value
+        else:
+            value = prompt_input(f"    {label}", default=str(current_value) if current_value else "")
+
+        if value is None or value == "":
+            value = current_value
+
+        # Type conversion
+        if field_type == "number":
+            try:
+                value = int(value)
+            except ValueError:
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass
+        elif field_type == "select" and value in ("true", "false"):
+            value = value == "true"
+
+        config[field_name] = value
+
+    return config
+
+
 def build_workflow_interactive(existing_workflow: Dict = None, available_tools: List[str] = None) -> Optional[Dict]:
     """Interactive workflow builder. Returns workflow dict or None if cancelled."""
     nodes = []
@@ -303,7 +379,7 @@ def edit_workflow_interactive(workflow: Dict, available_tools: List[str] = None)
 
     while True:
         console.print(f"\n  [bold]Editing:[/] {len(nodes)} nodes, {len(edges)} edges\n")
-        actions = ["add", "remove", "connect", "disconnect", "rename", "done"]
+        actions = ["add", "remove", "modify", "connect", "disconnect", "rename", "done"]
         console.print("    [dim]Actions:[/]")
         for a in actions:
             console.print(f"      [cyan]{a}[/]")
@@ -339,6 +415,19 @@ def edit_workflow_interactive(workflow: Dict, available_tools: List[str] = None)
                 nodes = [n for n in nodes if n["id"] != target]
                 edges = [e for e in edges if e["source"] != target and e["target"] != target]
                 print_success(f"Removed [cyan]{target}[/]")
+
+        elif action == "modify":
+            node_ids = [n["id"] for n in nodes]
+            if not node_ids:
+                print_warning("No nodes to modify.")
+                continue
+            target = prompt_choice("  Modify node", node_ids)
+            if target:
+                target_node = next((n for n in nodes if n["id"] == target), None)
+                if target_node:
+                    new_config = reconfigure_node(target_node, available_tools)
+                    target_node["config"] = new_config
+                    print_success(f"Updated [cyan]{target}[/]")
 
         elif action == "connect":
             node_ids = [n["id"] for n in nodes]

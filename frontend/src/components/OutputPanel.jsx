@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Copy, Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Copy, Download, ChevronUp, ChevronDown, Loader2, Coins } from 'lucide-react';
+import TokenUsagePanel from './TokenUsagePanel';
 
-export default function OutputPanel({ logs, finalOutput, errors, runDuration, streamText, onClose }) {
+export default function OutputPanel({ logs, finalOutput, errors, runDuration, streamText, streamingNode, isRunning, onClose, tokenUsage }) {
   const [activeTab, setActiveTab] = useState('logs');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const logsRef = useRef(null);
@@ -10,7 +11,13 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, st
     if (logsRef.current) {
       logsRef.current.scrollTop = logsRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, [logs, streamText]);
+
+  useEffect(() => {
+    if (finalOutput && !isRunning) {
+      setActiveTab('output');
+    }
+  }, [finalOutput, isRunning]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(finalOutput).then(() => {
@@ -66,12 +73,12 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, st
   return (
     <div
       className={`bg-[#141414] border-t border-[#333] flex flex-col shrink-0 transition-all ${
-        isCollapsed ? 'h-10' : 'h-64'
+        isCollapsed ? 'h-10' : 'h-80'
       }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#333] shrink-0">
         <div className="flex items-center gap-1">
-          {['logs', 'output', 'errors'].map((tab) => (
+          {['logs', 'output', 'errors', 'tokens'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -84,6 +91,7 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, st
               {tab === 'logs' && 'Live Logs'}
               {tab === 'output' && 'Final Output'}
               {tab === 'errors' && `Errors${errors.length ? ` (${errors.length})` : ''}`}
+              {tab === 'tokens' && <span className="flex items-center gap-1"><Coins className="w-3 h-3" /> Tokens</span>}
             </button>
           ))}
         </div>
@@ -149,9 +157,17 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, st
                 </div>
               ))}
               {streamText && (
-                <div className="mt-2 p-2 bg-[#1a1a1a] rounded border border-[#333]">
-                  <span className="text-yellow-400 text-[10px] uppercase tracking-wide">Streaming:</span>
-                  <pre className="text-gray-300 whitespace-pre-wrap mt-1 text-[11px] leading-relaxed">{streamText}<span className="animate-pulse text-yellow-400">|</span></pre>
+                <div className="mt-2 p-3 bg-[#1a1a2e] rounded border border-[#444]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 text-[10px] uppercase tracking-wide font-semibold">AI Response</span>
+                    {streamingNode && (
+                      <span className="text-[10px] text-gray-500">from {streamingNode}</span>
+                    )}
+                    {isRunning && (
+                      <Loader2 className="w-3 h-3 text-yellow-400 animate-spin" />
+                    )}
+                  </div>
+                  <pre className="text-gray-200 whitespace-pre-wrap text-[11px] leading-relaxed">{streamText}<span className="animate-pulse text-yellow-400">|</span></pre>
                 </div>
               )}
             </div>
@@ -177,6 +193,16 @@ export default function OutputPanel({ logs, finalOutput, errors, runDuration, st
                   <span className="text-red-500">Error {i + 1}:</span> {err}
                 </div>
               ))}
+            </div>
+          )}
+
+          {activeTab === 'tokens' && (
+            <div>
+              {tokenUsage ? (
+                <TokenUsagePanel tokenUsage={tokenUsage} />
+              ) : (
+                <p className="text-gray-600">No token usage data. Run the workflow to see usage.</p>
+              )}
             </div>
           )}
         </div>
